@@ -1,0 +1,4 @@
+aiogram==3.29.1
+aiosqlite==0.22.1
+camoufox==0.4.11
+playwright==1.58.0

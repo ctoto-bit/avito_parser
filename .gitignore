@@ -1,0 +1,31 @@
+# Тестовые файлы
+another_test.py
+for_tests.py
+for_db_tests.py
+
+# Виртуальное окружение
+.venv/
+
+# Кэш Python
+__pycache__/
+*.pyc
+
+# Базы данных
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Кэш pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Настройки VS Code (если не хочешь хранить их в репозитории)
+.vscode/
+.idea/
+
+# Локальные секреты и загруженные изображения
+.env
+pictures/
+*.log
