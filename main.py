@@ -5,6 +5,7 @@ import asyncio
 
 from application.dto import SearchRequest, SearchResult
 from application.result_formatter import format_apartment_card, format_search_summary
+from application.result_selection import split_initial_apartments
 from application.search_service import SearchService
 from database.database_manager import Database
 from infrastructure.avito import AvitoParserGateway, CityResolver
@@ -61,7 +62,8 @@ async def _cli() -> None:
         )
     )
     print(format_search_summary(result))
-    for apartment in result.apartments:
+    initial_apartments, _ = split_initial_apartments(result.apartments)
+    for apartment in initial_apartments:
         print("\n" + format_apartment_card(apartment))
 
 

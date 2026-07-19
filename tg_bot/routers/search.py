@@ -8,7 +8,7 @@ from application.result_formatter import format_price
 from application.validators import ValidationError, parse_price, validate_price_range
 from infrastructure.avito.city_resolver import CityResolver
 from infrastructure.jobs import SearchJob, SearchJobQueue
-from tg_bot.keyboards import START_SEARCH_TEXT, confirmation_keyboard
+from tg_bot.keyboards import START_SEARCH_TEXT, confirmation_keyboard, more_results_keyboard
 from tg_bot.states import SearchForm
 
 
@@ -125,5 +125,27 @@ def build_router(city_resolver: CityResolver, jobs: SearchJobQueue) -> Router:
         await callback.answer("Поиск отменён")
         if callback.message is not None:
             await callback.message.edit_text("Поиск отменён. Для нового поиска отправьте /search.")
+
+    @router.callback_query(F.data == "search:more")
+    async def show_more_apartments(callback: CallbackQuery) -> None:
+        chat_id = callback.message.chat.id if callback.message is not None else callback.from_user.id
+        has_more = await jobs.send_next_apartment(
+            user_id=callback.from_user.id,
+            chat_id=chat_id,
+        )
+        if has_more is None:
+            await callback.answer("Эта выдача больше недоступна. Запустите новый поиск.", show_alert=True)
+            return
+
+        await callback.answer()
+        if callback.message is None:
+            return
+        if has_more:
+            await callback.message.edit_text(
+                "Нажмите кнопку, чтобы увидеть следующее объявление.",
+                reply_markup=more_results_keyboard,
+            )
+        else:
+            await callback.message.edit_text("Объявления закончились.")
 
     return router

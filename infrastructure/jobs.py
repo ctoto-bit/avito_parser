@@ -7,11 +7,13 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import InputMediaPhoto
 
-from application.dto import SearchRequest, SearchResult
+from application.dto import ApartmentCard, SearchRequest, SearchResult
 from application.errors import AppError, public_error_message
 from application.result_formatter import format_apartment_card, format_search_summary
+from application.result_selection import split_initial_apartments
 from application.search_service import SearchService
 from infrastructure.database.repositories import SqliteApartmentRepository
+from tg_bot.keyboards import more_results_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +23,12 @@ class SearchJob:
     chat_id: int
     user_id: int
     request: SearchRequest
+
+
+@dataclass(slots=True)
+class RemainingResults:
+    chat_id: int
+    apartments: list[ApartmentCard]
 
 
 class SearchJobQueue:
@@ -40,6 +48,8 @@ class SearchJobQueue:
         self._queue: asyncio.Queue[SearchJob | None] = asyncio.Queue()
         self._semaphore = asyncio.Semaphore(max_concurrent_searches)
         self._active_users: set[int] = set()
+        self._remaining_results: dict[int, RemainingResults] = {}
+        self._remaining_results_lock = asyncio.Lock()
         self._worker_task: asyncio.Task | None = None
 
     async def start(self) -> None:
@@ -162,7 +172,13 @@ class SearchJobQueue:
                 exc_info=True,
             )
             return
-        for apartment in result.apartments:
+        initial_apartments, remaining_apartments = split_initial_apartments(result.apartments)
+        async with self._remaining_results_lock:
+            self._remaining_results.pop(user_id, None)
+            if remaining_apartments:
+                self._remaining_results[user_id] = RemainingResults(chat_id, remaining_apartments)
+
+        for apartment in initial_apartments:
             try:
                 await self._bot.send_message(chat_id, format_apartment_card(apartment))
             except TelegramAPIError:
@@ -173,6 +189,39 @@ class SearchJobQueue:
                 )
                 continue
             await self._send_images(chat_id, apartment.image_urls)
+
+        if remaining_apartments:
+            try:
+                await self._bot.send_message(
+                    chat_id,
+                    "Показаны первые объявления. Нажмите кнопку, чтобы увидеть следующее.",
+                    reply_markup=more_results_keyboard,
+                )
+            except TelegramAPIError:
+                logger.warning("Could not send more-results button", exc_info=True)
+        elif initial_apartments:
+            try:
+                await self._bot.send_message(chat_id, "Объявления закончились.")
+            except TelegramAPIError:
+                logger.warning("Could not send end-of-results message", exc_info=True)
+
+    async def send_next_apartment(self, *, user_id: int, chat_id: int) -> bool | None:
+        """Send one remaining result; None means that the button is stale."""
+        async with self._remaining_results_lock:
+            results = self._remaining_results.get(user_id)
+            if results is None or results.chat_id != chat_id:
+                return None
+            apartment = results.apartments.pop(0)
+            has_more = bool(results.apartments)
+            if not has_more:
+                self._remaining_results.pop(user_id, None)
+
+        try:
+            await self._bot.send_message(chat_id, format_apartment_card(apartment))
+            await self._send_images(chat_id, apartment.image_urls)
+        except TelegramAPIError:
+            logger.warning("Could not send apartment card to user %s", user_id, exc_info=True)
+        return has_more
 
     async def _send_images(self, chat_id: int, image_urls: list[str]) -> None:
         urls = image_urls[:3]

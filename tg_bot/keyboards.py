@@ -19,3 +19,9 @@ confirmation_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="Отмена", callback_data="search:cancel")],
     ]
 )
+
+more_results_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Увидеть больше объявлений", callback_data="search:more")],
+    ]
+)

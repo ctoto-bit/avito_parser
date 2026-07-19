@@ -25,6 +25,8 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+Зависимости включают расширение Camoufox `geoip`, необходимое для запуска браузера с настройкой геолокации.
+
 Скопируйте пример настроек и укажите токен:
 
 ```powershell
