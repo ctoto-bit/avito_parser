@@ -25,9 +25,10 @@ cd avito_parser
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+python -m camoufox fetch
 ```
 
-Зависимости включают расширение Camoufox `geoip`, необходимое для запуска браузера с настройкой геолокации.
+Команда `python -m camoufox fetch` обязательна: она скачивает браузер Camoufox, который не поставляется вместе с Python-пакетом.
 
 Скопируйте пример настроек и укажите токен:
 

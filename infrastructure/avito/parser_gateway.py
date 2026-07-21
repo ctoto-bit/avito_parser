@@ -31,7 +31,6 @@ class AvitoParserGateway:
 
         try:
             async with AsyncCamoufox(
-                geoip=True,
                 humanize=True,
                 window=(1300, 700),
                 os="windows",

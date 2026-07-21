@@ -1,4 +1,4 @@
 aiogram==3.30.0
 aiosqlite==0.22.1
-camoufox[geoip]==0.4.11
+camoufox==0.4.11
 playwright==1.58.0
