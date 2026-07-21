@@ -11,7 +11,7 @@ from application.result_formatter import format_price
 from application.validators import ValidationError, parse_price, validate_price_range
 from infrastructure.avito.city_resolver import CityResolver
 from infrastructure.jobs import SearchJob, SearchJobQueue
-from tg_bot.keyboards import START_SEARCH_TEXT, confirmation_keyboard
+from tg_bot.keyboards import START_SEARCH_TEXT, confirmation_keyboard, main_keyboard
 from tg_bot.states import SearchForm
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ def build_router(city_resolver: CityResolver, jobs: SearchJobQueue) -> Router:
     async def start_search(message: Message, state: FSMContext) -> None:
         await state.clear()
         await state.set_state(SearchForm.waiting_city)
-        await message.answer("В каком городе ищем квартиру?")
+        await message.answer("В каком городе ищем квартиру?", reply_markup=main_keyboard)
 
     @router.message(SearchForm.waiting_city, F.text)
     async def receive_city(message: Message, state: FSMContext) -> None:

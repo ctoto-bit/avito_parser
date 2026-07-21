@@ -10,6 +10,7 @@ START_SEARCH_TEXT = "🔎 Начать поиск"
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text=START_SEARCH_TEXT)]],
     resize_keyboard=True,
+    is_persistent=True,
 )
 
 confirmation_keyboard = InlineKeyboardMarkup(
