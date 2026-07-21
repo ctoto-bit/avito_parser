@@ -1,4 +1,7 @@
+import logging
+
 from aiogram import F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -8,8 +11,10 @@ from application.result_formatter import format_price
 from application.validators import ValidationError, parse_price, validate_price_range
 from infrastructure.avito.city_resolver import CityResolver
 from infrastructure.jobs import SearchJob, SearchJobQueue
-from tg_bot.keyboards import START_SEARCH_TEXT, confirmation_keyboard, more_results_keyboard
+from tg_bot.keyboards import START_SEARCH_TEXT, confirmation_keyboard
 from tg_bot.states import SearchForm
+
+logger = logging.getLogger(__name__)
 
 
 def build_router(city_resolver: CityResolver, jobs: SearchJobQueue) -> Router:
@@ -128,24 +133,30 @@ def build_router(city_resolver: CityResolver, jobs: SearchJobQueue) -> Router:
 
     @router.callback_query(F.data == "search:more")
     async def show_more_apartments(callback: CallbackQuery) -> None:
+        try:
+            await callback.answer()
+        except TelegramAPIError:
+            logger.info("Не удалось подтвердить нажатие кнопки показа объявлений")
+
         chat_id = callback.message.chat.id if callback.message is not None else callback.from_user.id
+        if callback.message is not None:
+            try:
+                await callback.message.delete()
+            except TelegramAPIError:
+                logger.info("Не удалось удалить использованную кнопку показа объявлений")
+
         has_more = await jobs.send_next_apartment(
             user_id=callback.from_user.id,
             chat_id=chat_id,
         )
         if has_more is None:
-            await callback.answer("Эта выдача больше недоступна. Запустите новый поиск.", show_alert=True)
             return
 
-        await callback.answer()
         if callback.message is None:
             return
         if has_more:
-            await callback.message.edit_text(
-                "Нажмите кнопку, чтобы увидеть следующее объявление.",
-                reply_markup=more_results_keyboard,
-            )
+            await jobs.send_more_results_button(chat_id)
         else:
-            await callback.message.edit_text("Объявления закончились.")
+            await callback.message.answer("Объявления закончились.")
 
     return router

@@ -191,14 +191,7 @@ class SearchJobQueue:
             await self._send_images(chat_id, apartment.image_urls)
 
         if remaining_apartments:
-            try:
-                await self._bot.send_message(
-                    chat_id,
-                    "Показаны первые объявления. Нажмите кнопку, чтобы увидеть следующее.",
-                    reply_markup=more_results_keyboard,
-                )
-            except TelegramAPIError:
-                logger.warning("Could not send more-results button", exc_info=True)
+            await self.send_more_results_button(chat_id)
         elif initial_apartments:
             try:
                 await self._bot.send_message(chat_id, "Объявления закончились.")
@@ -223,6 +216,16 @@ class SearchJobQueue:
             logger.warning("Could not send apartment card to user %s", user_id, exc_info=True)
         return has_more
 
+    async def send_more_results_button(self, chat_id: int) -> None:
+        try:
+            await self._bot.send_message(
+                chat_id,
+                "Нажмите кнопку, чтобы увидеть следующее объявление.",
+                reply_markup=more_results_keyboard,
+            )
+        except TelegramAPIError:
+            logger.warning("Could not send more-results button", exc_info=True)
+
     async def _send_images(self, chat_id: int, image_urls: list[str]) -> None:
         urls = image_urls[:3]
         if not urls:
@@ -233,5 +236,5 @@ class SearchJobQueue:
                 return
             media = [InputMediaPhoto(media=url) for url in urls]
             await self._bot.send_media_group(chat_id, media=media)
-        except TelegramAPIError:
-            logger.info("Telegram не смог загрузить фотографии объявления", exc_info=True)
+        except TelegramAPIError as error:
+            logger.info("Telegram не смог загрузить фотографии объявления: %s", error)
